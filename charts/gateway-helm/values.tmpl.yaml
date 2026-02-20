@@ -144,6 +144,31 @@ certgen:
   rbac:
     annotations: {}
     labels: {}
+  # -- Optional cert-manager integration. When enabled, cert-manager Certificate
+  # resources replace the certgen Job for TLS certificate generation.
+  # Requires cert-manager v1.0+ with cainjector to be installed in the cluster.
+  certManager:
+    enabled: false
+    # -- Optional reference to a custom Issuer/ClusterIssuer. When set, the
+    # self-signed Issuer and root CA Certificate are not created.
+    # Example:
+    #   issuerRef:
+    #     name: my-ca-issuer
+    #     kind: ClusterIssuer
+    #     group: cert-manager.io
+    issuerRef: {}
+    # -- Root CA certificate config (only when issuerRef is not set)
+    rootCert:
+      duration: ""   # Default: "43800h" (5 years)
+    # -- Envoy Gateway server certificate config
+    gatewayServerCert:
+      duration: ""   # Default: "8760h" (1 year)
+    # -- Envoy client certificate config
+    envoyCert:
+      duration: ""   # Default: "8760h" (1 year)
+    # -- Rate limit certificate config
+    rateLimitCert:
+      duration: ""   # Default: "8760h" (1 year)
 
 topologyInjector:
   enabled: true

@@ -1,0 +1,165 @@
+{{- if .Values.certgen.certManager.enabled }}
+{{- $issuerRef := .Values.certgen.certManager.issuerRef }}
+{{- $hasCustomIssuer := and $issuerRef (not (empty $issuerRef)) $issuerRef.name }}
+{{- if not $hasCustomIssuer }}
+---
+# Self-signed Issuer to bootstrap the CA
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "eg.fullname" . }}-selfsigned
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+  {{- include "eg.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+---
+# Root CA Certificate (self-signed)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "eg.fullname" . }}-ca
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+  {{- include "eg.labels" . | nindent 4 }}
+spec:
+  isCA: true
+  commonName: {{ include "eg.fullname" . }}-ca
+  secretName: {{ include "eg.fullname" . }}-ca
+  {{- with .Values.certgen.certManager.rootCert.duration }}
+  duration: {{ . | quote }}
+  {{- else }}
+  duration: "43800h"
+  {{- end }}
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: {{ include "eg.fullname" . }}-selfsigned
+    kind: Issuer
+    group: cert-manager.io
+---
+# CA Issuer that signs leaf certificates using the root CA secret
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "eg.fullname" . }}-root
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+  {{- include "eg.labels" . | nindent 4 }}
+spec:
+  ca:
+    secretName: {{ include "eg.fullname" . }}-ca
+{{- end }}
+---
+# Envoy Gateway server certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: envoy-gateway
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+  {{- include "eg.labels" . | nindent 4 }}
+spec:
+  commonName: envoy-gateway
+  secretName: envoy-gateway
+  {{- with .Values.certgen.certManager.gatewayServerCert.duration }}
+  duration: {{ . | quote }}
+  {{- else }}
+  duration: "8760h"
+  {{- end }}
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  usages:
+    - digital signature
+    - key encipherment
+    - content commitment
+  dnsNames:
+    - envoy-gateway
+    - envoy-gateway.{{ .Release.Namespace }}
+    - envoy-gateway.{{ .Release.Namespace }}.svc
+    - envoy-gateway.{{ .Release.Namespace }}.svc.{{ .Values.kubernetesClusterDomain }}
+  issuerRef:
+  {{- if $hasCustomIssuer }}
+    name: {{ $issuerRef.name }}
+    kind: {{ $issuerRef.kind | default "Issuer" }}
+    group: {{ $issuerRef.group | default "cert-manager.io" }}
+  {{- else }}
+    name: {{ include "eg.fullname" . }}-root
+    kind: Issuer
+    group: cert-manager.io
+  {{- end }}
+---
+# Envoy client certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: envoy
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+  {{- include "eg.labels" . | nindent 4 }}
+spec:
+  commonName: envoy
+  secretName: envoy
+  {{- with .Values.certgen.certManager.envoyCert.duration }}
+  duration: {{ . | quote }}
+  {{- else }}
+  duration: "8760h"
+  {{- end }}
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  usages:
+    - digital signature
+    - key encipherment
+    - content commitment
+  dnsNames:
+    - '*.{{ .Release.Namespace }}'
+  issuerRef:
+  {{- if $hasCustomIssuer }}
+    name: {{ $issuerRef.name }}
+    kind: {{ $issuerRef.kind | default "Issuer" }}
+    group: {{ $issuerRef.group | default "cert-manager.io" }}
+  {{- else }}
+    name: {{ include "eg.fullname" . }}-root
+    kind: Issuer
+    group: cert-manager.io
+  {{- end }}
+---
+# Envoy rate limit certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: envoy-rate-limit
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+  {{- include "eg.labels" . | nindent 4 }}
+spec:
+  commonName: envoy-rate-limit
+  secretName: envoy-rate-limit
+  {{- with .Values.certgen.certManager.rateLimitCert.duration }}
+  duration: {{ . | quote }}
+  {{- else }}
+  duration: "8760h"
+  {{- end }}
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  usages:
+    - digital signature
+    - key encipherment
+    - content commitment
+  dnsNames:
+    - '*.{{ .Release.Namespace }}'
+  issuerRef:
+  {{- if $hasCustomIssuer }}
+    name: {{ $issuerRef.name }}
+    kind: {{ $issuerRef.kind | default "Issuer" }}
+    group: {{ $issuerRef.group | default "cert-manager.io" }}
+  {{- else }}
+    name: {{ include "eg.fullname" . }}-root
+    kind: Issuer
+    group: cert-manager.io
+  {{- end }}
+{{- end }}

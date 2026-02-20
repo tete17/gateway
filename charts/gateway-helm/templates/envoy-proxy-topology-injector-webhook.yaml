@@ -19,8 +19,12 @@ kind: MutatingWebhookConfiguration
 metadata:
   name: 'envoy-gateway-topology-injector.{{ .Release.Namespace }}'
   annotations:
+  {{- if not .Values.certgen.certManager.enabled }}
     "helm.sh/hook": pre-install, pre-upgrade
     "helm.sh/hook-weight": "-1"
+  {{- else }}
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/envoy-gateway
+  {{- end }}
   {{- if .Values.topologyInjector.annotations }}
     {{- toYaml .Values.topologyInjector.annotations | nindent 4 -}}
   {{- end }}
